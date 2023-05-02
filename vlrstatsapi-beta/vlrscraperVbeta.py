@@ -19,30 +19,37 @@ NEWS: str = "news/"
 FORUMS: str = "forum/"
 PLAYER: str = "player/"
 
-@dataclass(frozen=True, order=True)
+@dataclass(order=True)
 class Player:
+    match_id: int
+    match_date: str
+    match_score: str
+    game_index: int
+    map: int
+    game_score: str
+    player_agent: str
+    rounds_played: int
+    player_id : int
     player_name: str
-    player_id: int
+    team_id: int
+    team_name: str
+    team_name_short: str
+    team_vlr_rating: int
     player_adr: int
     player_kills: int
     player_deaths: int
     player_assists: int
-    match_id: int
-    date: str
+    player_kpr: float
+    opponent_id: int
+    opponent_name_long: str
+    opponent_name_short: str
+    opponent_vlr_rating: int
     
 #player = Player('s0m', 655, 400, 12, 5, 6, 210233, '2023-06-31')
 
 class RequestString(str):
     def __init__(self, string: str) -> None:
         self.string = string
-
-    def remove_newlines(self):
-        self.string = self.string.replace("\n", "")
-        return self
-
-    def remove_tabs(self):
-        self.string = self.string.replace("\t", "")
-        return self
 
     def __repr__(self) -> str:
         return self.string
@@ -59,7 +66,7 @@ def get_soup(address :str) -> BeautifulSoup:
         return soup
 
 def get_game_soups(match_id : int = None, match_soup : BeautifulSoup = None) -> list:
-    """Retrieves a list of bs4 strings for each map, removes match summar"""
+    """Retrieves a list of bs4 strings for each map, removes 'all' game and any non played maps"""
     if match_soup is None:
         match_soup = get_soup(str(match_id))
     stat_tab = match_soup.find(class_="vm-stats-container")
@@ -70,58 +77,136 @@ def get_game_soups(match_id : int = None, match_soup : BeautifulSoup = None) -> 
 def add_player_to_dataFrame(dataframe, player): 
     dataframe.append(player)
 
-def get_match_player_data(match_ids : list, dataset=None, soups_file=''):
+def get_match_id_from_soup(match_soup: BeautifulSoup)->int:
+    """Returns the match id from a given match soup
+
+    Args:
+        match_soup (BeautifulSoup): a soup from the match
+
+    Returns:
+        int: match id in integer form
+    """
+    return int(match_soup.find(class_='vm-stats').get('data-url').split('/', maxsplit=2)[1])
+
+def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None)->list:
+    match_data = []
+    if match_id is None:
+        match_id = get_match_id_from_soup(match_soup)
+    game_soups = get_game_soups(match_soup=match_soup)
+    match_date = get_match_date(match_soup=match_soup)
+    match_style = get_match_style(match_soup=match_soup)
+    match_event = get_match_event(match_soup=match_soup)
+    match_score = get_match_score(match_soup=match_soup)
+    team_name_long = get_team_names_long(match_soup=match_soup)
+    team_id = get_team_ids(match_soup=match_soup)
+    team_elo = get_team_elos(match_soup=match_soup)
+    # Looping through each map in a series (match)
+        # Sets the information that changes between maps
+        # creates lists for each variable in order of players retrieved
+    for i, game_soup in enumerate(game_soups):
+        #not including games that are less than 10 players because they shouldnt exist
+        player_names = get_player_names(game_soups[i])
+        if len(player_names) < 10:
+            continue
+        game_index = i
+        team_name_short = get_team_names_short(game_soup=game_soup)
+        player_id = get_player_ids(game_soups[i])
+        player_agent = get_player_agents(game_soups[i])
+        map = get_game_map(game_soups[i])
+        rounds_played = get_game_rounds_played(game_soups[i])
+        player_adr = get_player_adrs(game_soups[i])
+        player_kills = get_player_kills(game_soups[i])
+        player_deaths = get_player_deaths(game_soups[i])
+        player_assists = get_player_assists(game_soups[i])
+        game_score = get_game_score(game_soups[i])
+
+        # Loops through all players playing a map
+        for index, player_name in enumerate(player_names):
+            # Team 1
+            if index <= 4:
+                player_team_long = team_name_long[0]
+                player_team_short = team_name_short[0]
+                player_team_id = team_id[0]
+                player_team_elo = team_elo[0]
+                player_opponent_long = team_name_long[1]
+                player_opponent_short = team_name_short[5]
+                player_opponent_id = team_id[1]
+                player_opponent_elo = team_elo[1]
+            # Team 2
+            else:
+                player_team_long = team_name_long[1]
+                player_team_short = team_name_short[5]
+                player_team_id = team_id[1]
+                player_team_elo = team_elo[1]
+                player_opponent_long = team_name_long[0]
+                player_opponent_short = team_name_short[0]
+                player_opponent_id = team_id[0]
+                player_opponent_elo = team_elo[0]
+            # Building a row for each player
+            if isinstance(player_kills[index], str) or isinstance(rounds_played, str):
+                player_kpr = -1
+            else:
+                player_kpr = round(player_kills[index] / int(rounds_played), 2)
+                
+            match_data.append(Player(
+                match_id,
+                match_date,
+                match_score,
+                game_index,
+                map,
+                game_score,
+                player_agent[index],
+                rounds_played,
+                player_id[index],
+                player_name,
+                player_team_id,
+                player_team_long,
+                player_team_short,
+                player_team_elo,
+                player_adr[index],
+                player_kills[index],
+                player_deaths[index],
+                player_assists[index],
+                player_kpr,
+                player_opponent_id,
+                player_opponent_long,
+                player_opponent_short,
+                player_opponent_elo
+            ))
+    
+    return match_data
+
+def get_match_datas(match_ids : list, data_file: str = None, soups_file: str = None):
     """
         returns match data for players specified, if all_players
         returns all player data from matches, returns the match_soups in a list as well
     """
-    # Defining the columns for the dataset
-    columns = [
-                'match_id',
-                'match_date',
-                'match_style',
-                #'match_event': [],
-                'match_score',
-                'game_index',
-                'map',
-                'game_score',
-                'player_agent',
-                'rounds_played',
-                'player_id',
-                'player_name',
-                'player_team_id',
-                'player_team_name_long',
-                'player_team_name_short',
-                'player_team_vlr_rating',
-                'player_adr',
-                'player_kills',
-                'player_deaths',
-                'player_assists',
-                'player_kpr',
-                'opponent_id',
-                'opponent_name_long',
-                'opponent_name_short',
-                'opponent_vlr_rating',
-        ]
-    data_frame = pd.DataFrame(columns=columns)
 
     # Finding matches that have already been scraped into a dataset, only includes new matches to scrape
     used_match_ids = []
-    if dataset is not None:
-        used_match_ids = dataset['match_id'].drop_duplicates().to_list()
-        used_match_ids = [str(elem) for elem in used_match_ids]
-        match_ids = [match for match in match_ids if match not in used_match_ids]
-        print(f'DATASET DETECTED APPPENDING {len(match_ids)} MATCHES')
+    data = []
+    filename = 'default'
+    makeNewFile = True
+    try:
+        data = pd.read_csv(data_file)
+        if data_file is not None or data.columns != len(Player.__annotations__): 
+            used_match_ids = data.match_id.drop_duplicates().to_list()
+            used_match_ids = [str(elem) for elem in used_match_ids]
+            match_ids = [match for match in match_ids if match not in used_match_ids]
+            print(f'DATASET DETECTED - APPPENDING {len(match_ids)} MATCHES')
+            makeNewFile = False
+        else:
+            print(f"Incorrect number of columns. Creating a new file with name '{filename}.csv'")
+        
+    except FileNotFoundError:
+        print(f"No file found. Creating new file with name '{filename}.csv'")
 
-    # Match Count for progress
-    match_num = 1
-    
     # Handling loading the stored soups into a list
     stored_soups = None
     try:
         print(f"Loading saved soup file: {soups_file}")
         stored_soups = pd.read_csv(soups_file)
-        print(stored_soups)
+        #print(stored_soups)
     except FileNotFoundError:
         print('No stored soups found.')
         stored_soups = pd.DataFrame(stored_soups, columns=['match_id', 'soup'])
@@ -129,6 +214,7 @@ def get_match_player_data(match_ids : list, dataset=None, soups_file=''):
     # Looping through each match in the match_id list
         # Sets the information that doesnt through map/players
     for match_id in match_ids:
+        print(f"Match {match_ids.index(match_id)} / {len(match_ids)}")
         # Getting the index of a match soup by comparing to stored_soup match_id
         index = stored_soups.loc[stored_soups['match_id'] == int(match_id)].index.tolist()
         if bool(index):
@@ -140,103 +226,10 @@ def get_match_player_data(match_ids : list, dataset=None, soups_file=''):
         else: # If there is no match in the stored soups it will look up the match and store to the list for future use
             match_soup = get_soup(str(match_id))
             stored_soups.loc[len(stored_soups.index)] = [match_id, match_soup]
-            
-        game_soups = get_game_soups(match_soup=match_soup)
-        match_date = get_match_date(match_soup=match_soup)
-        match_style = get_match_style(match_soup=match_soup)
-        match_event = get_match_event(match_soup=match_soup)
-        match_score = get_match_score(match_soup=match_soup)
-        team_name_long = get_team_names_long(match_soup=match_soup)
-        team_id = get_team_ids(match_soup=match_soup)
-        team_elo = get_team_elos(match_soup=match_soup)
-        print(f'MATCH {match_num}/{len(match_ids)}')
-        match_num+=1
-        # Looping through each map in a series (match)
-            # Sets the information that changes between maps
-            # creates lists for each variable in order of players retrieved
-        for i, game_soup in enumerate(game_soups):
-            #not including games that are less than 10 players because they shouldnt exist
-            player_names = get_player_names(game_soups[i])
-            if len(player_names) < 10:
-                continue
-            game_index = i
-            team_name_short = get_team_names_short(game_soup=game_soup)
-            player_id = get_player_ids(game_soups[i])
-            player_agent = get_player_agents(game_soups[i])
-            map = get_game_map(game_soups[i])
-            rounds_played = get_game_rounds_played(game_soups[i])
-            player_adr = get_player_adrs(game_soups[i])
-            player_kills = get_player_kills(game_soups[i])
-            player_deaths = get_player_deaths(game_soups[i])
-            player_assists = get_player_assists(game_soups[i])
-            game_score = get_game_score(game_soups[i])
-
-            # Loops through all players playing a map
-            for index, player_name in enumerate(player_names):
-                # Team 1
-                if index <= 4:
-                    player_team_long = team_name_long[0]
-                    player_team_short = team_name_short[0]
-                    player_team_id = team_id[0]
-                    player_team_elo = team_elo[0]
-                    player_opponent_long = team_name_long[1]
-                    player_opponent_short = team_name_short[5]
-                    player_opponent_id = team_id[1]
-                    player_opponent_elo = team_elo[1]
-                # Team 2
-                else:
-                    player_team_long = team_name_long[1]
-                    player_team_short = team_name_short[5]
-                    player_team_id = team_id[1]
-                    player_team_elo = team_elo[1]
-                    player_opponent_long = team_name_long[0]
-                    player_opponent_short = team_name_short[0]
-                    player_opponent_id = team_id[0]
-                    player_opponent_elo = team_elo[0]
-                # Building a row for each player
-                if isinstance(player_kills[index], str) or isinstance(rounds_played, str):
-                    player_kpr = '***'
-                else:
-                    player_kpr = round(player_kills[index] / int(rounds_played), 2)
-                data = [
-                    match_id,
-                    match_date,
-                    match_style,
-                    #'match_event': [],
-                    match_score,
-                    game_index,
-                    map,
-                    game_score,
-                    player_agent[index],
-                    rounds_played,
-                    player_id[index],
-                    player_name,
-                    player_team_id,
-                    player_team_long,
-                    player_team_short,
-                    player_team_elo,
-                    player_adr[index],
-                    player_kills[index],
-                    player_deaths[index],
-                    player_assists[index],
-                    player_kpr,
-                    player_opponent_id,
-                    player_opponent_long,
-                    player_opponent_short,
-                    player_opponent_elo
-                ]
-                # Applying the row to an exisitng dataset
-                if dataset is not None:
-                    dataset.loc[len(dataset)] = data
-                # or a new one
-                else:
-                    data_frame.loc[len(data_frame)] = data 
+        
+        data+=get_match_data(match_soup)
     
-    # Returning the appended dataset
-    if dataset is not None:
-        return dataset, stored_soups
-    # or the new one
-    return data_frame, stored_soups
+    return data, stored_soups
 
 def get_match_date(match_id : int = None, match_soup : BeautifulSoup = None)->str:
     """Returns the date of the match"""
@@ -473,6 +466,6 @@ def to_json(filename: str, data: dict, indent : int = 4, append : bool = False) 
         json.dump(data, file, indent=indent)
         file.write('\n')  # Add a newline after each JSON object for readability
 
-def to_csv(self : pd.DataFrame, filename : str = 'default.csv') -> None:
-    """Converts a pandas datafram to a .csv file"""
-    self.to_csv(f'{filename}.csv', index=False)
+# def to_csv(self : pd.DataFrame, filename : str = 'default') -> None:
+#     """Converts a pandas dataframe to a .csv file"""
+#     self.to_csv(f'{filename}.csv', index=False)
