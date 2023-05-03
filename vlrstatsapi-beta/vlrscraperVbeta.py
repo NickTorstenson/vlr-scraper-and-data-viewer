@@ -372,17 +372,43 @@ def get_player_names(game_soup: BeautifulSoup = None) -> list:
     return player_names
 
 
-def get_player_ratings(game_soup: BeautifulSoup = None) -> list:
-    player_adr_html = game_soup.find_all(class_="mod-stat")
-    player_adrs = []
-    for htelement in player_adr_html:
-        print(RequestString(htelement.text).strip().split('\n', maxsplit=1))
-        if RequestString(htelement.text).strip().split('\n', maxsplit=1)[0] == '':
-            player_adrs.append('***')
-        else:
-            player_adrs.append(
-                float(RequestString(htelement.text).strip().split('\n', maxsplit=1)[0]))
-    return player_adrs
+def get_player_game_stats(game_soup: BeautifulSoup, 
+                          player_index: int = False, 
+                          stat_column: str = False) -> list:
+    """Pulls info from the stats table and gives a table of the values
+
+    Args:
+        game_soup (BeautifulSoup): Submit a soup to improve speed. Defaults to None.
+        player_index (int, optional): Option to return a specific row of player stats. Defaults to False.
+        stat_column (str, optional): Option to return a specific row of player data. Defaults to False.
+
+    Returns:
+        list: Returns a pandas DataFrame with applicable column titles
+    """
+    player_stat_html = game_soup.find_all(class_="mod-stat")
+    player_stat_list = []
+    player_stat = []
+    columns = ['player_rating', 'player_acs', 'player_kills', 'player_deaths', 'player_assists',
+               'player_kills-deaths', 'player_kast', 'player_adr', 'player_hs', 'player_fk', 'player_fd', 'player_fk-fd']
+    for index, htelement in enumerate(player_stat_html):
+        #print(htelement.text.split('\n'))
+        stat = htelement.text.replace('/', '').replace('\n', ' ').strip().split(' ')[0]
+        try:
+            stat = float(stat)
+        except ValueError:
+            stat = float(stat.replace('%', '')) / 100
+        player_stat.append(stat)
+        if (index + 1) % 12 == 0:
+            player_stat_list.append(player_stat)
+            player_stat = []
+    player_stat_list = pd.DataFrame(player_stat_list, columns=columns)
+    if not stat_column and not player_index:
+        return player_stat_list
+    if stat_column and not player_index:
+        return player_stat_list[stat_column] 
+    if stat_column and player_index:
+        return player_stat_list.iloc[[player_index]]
+    return player_stat_list[player_index][stat_column]
 
 
 def get_player_kills(game_soup: BeautifulSoup = None) -> list:
