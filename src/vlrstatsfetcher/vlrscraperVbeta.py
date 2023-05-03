@@ -372,12 +372,12 @@ def get_player_names(game_soup: BeautifulSoup = None) -> list:
     return player_names
 
 
-def get_player_game_stats(game_soup: BeautifulSoup, player_index: int = False, stat_column: str = False) -> list:
+def get_game_stats(game_soup: BeautifulSoup, player_index: int = False, stat_column: str = False) -> list:
     """Pulls info from the stats table and gives a table of the values
 
     Args:
-        game_soup (BeautifulSoup): Submit a soup to improve speed. Defaults to None.
-        player_index (int, optional): Option to return a specific row of player stats. Defaults to False.
+        game_soup (BeautifulSoup): Submit a soup to improve speed. Defaults to None.\n
+        player_index (int, optional): Option to return a specific row of player stats. Defaults to False.\n
         stat_column (str, optional): Option to return a specific row of player data. Defaults to False.
 
     Returns:
@@ -406,7 +406,8 @@ def get_player_game_stats(game_soup: BeautifulSoup, player_index: int = False, s
         return player_stat_list[stat_column] 
     if stat_column and player_index:
         return player_stat_list.iloc[[player_index]]
-    return player_stat_list[player_index][stat_column]
+    else:
+        return player_stat_list[player_index][stat_column]
 
 
 def get_player_kills(game_soup: BeautifulSoup = None) -> list:

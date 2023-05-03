@@ -2,6 +2,7 @@ LICENSE
 pyproject.toml
 setup.cfg
 setup.py
+src/vlrstatsfetcher/py.typed
 src/vlrstatsfetcher/vlrscraperVbeta.py
 src/vlrstatsfetcher.egg-info/PKG-INFO
 src/vlrstatsfetcher.egg-info/SOURCES.txt
