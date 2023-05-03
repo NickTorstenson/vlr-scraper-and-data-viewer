@@ -1,6 +1,6 @@
 from datetime import date
 import pandas as pd
-import vlrscraperVbeta as vlrs
+import vlrstatsfetcher.vlrscraperVbeta as vlrs
 import bs4
 import cProfile
 import pstats
