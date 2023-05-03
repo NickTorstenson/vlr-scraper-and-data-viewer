@@ -1,0 +1,11 @@
+LICENSE
+pyproject.toml
+setup.cfg
+setup.py
+src/vlrstatsfetcher/vlrscraperVbeta.py
+src/vlrstatsfetcher.egg-info/PKG-INFO
+src/vlrstatsfetcher.egg-info/SOURCES.txt
+src/vlrstatsfetcher.egg-info/dependency_links.txt
+src/vlrstatsfetcher.egg-info/not-zip-safe
+src/vlrstatsfetcher.egg-info/requires.txt
+src/vlrstatsfetcher.egg-info/top_level.txt
