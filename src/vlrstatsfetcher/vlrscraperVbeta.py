@@ -35,10 +35,21 @@ class Player:
     team_name: str
     team_name_short: str
     team_vlr_rating: int
-    player_adr: int
+    
+    player_rating: float
+    player_acs: int
     player_kills: int
     player_deaths: int
     player_assists: int
+    player_kdiff: int
+    player_kast: float
+    player_adr: int
+    player_hs: float
+    player_fk: int
+    player_fd: int
+    player_fdiff: int
+    
+    
     player_kpr: float
     opponent_id: int
     opponent_name_long: str
@@ -95,7 +106,7 @@ def get_match_id_from_soup(match_soup: BeautifulSoup) -> int:
     return int(match_soup.find(class_='vm-stats').get('data-url').split('/', maxsplit=2)[1])
 
 
-def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None) -> list:
+def get_match_data(match_soup: BeautifulSoup = False, match_id: int = None) -> list:
     """Returns a list of player objects which contain all the columns of data in key value pairs.
 
     Args:
@@ -106,7 +117,9 @@ def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None) -> li
         list: A list of player objects containing all data associated to them in a match
     """
     match_data = []
-    if match_id is None:
+    if match_id:
+        match_soup = get_soup(str(match_id))
+    if match_soup:
         match_id = get_match_id_from_soup(match_soup)
     game_soups = get_game_soups(match_soup=match_soup)
     match_date = get_match_date(match_soup=match_soup)
@@ -121,7 +134,7 @@ def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None) -> li
     # creates lists for each variable in order of players retrieved
     for i, game_soup in enumerate(game_soups):
         # not including games that are less than 10 players because they shouldnt exist
-        player_names = get_player_names(game_soups[i])
+        player_names = get_player_names(game_soup)
         if len(player_names) < 10:
             continue
         game_index = i
@@ -130,10 +143,7 @@ def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None) -> li
         player_agent = get_player_agents(game_soup)
         map = get_game_map(game_soup)
         rounds_played = get_game_rounds_played(game_soup)
-        player_adr = get_player_adrs(game_soup)
-        player_kills = get_player_kills(game_soup)
-        player_deaths = get_player_deaths(game_soup)
-        player_assists = get_player_assists(game_soup)
+        game_stats = get_game_stats(game_soup=game_soup)
         game_score = get_game_score(game_soup)
 
         # Loops through all players playing a map
@@ -159,10 +169,10 @@ def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None) -> li
                 player_opponent_id = team_id[0]
                 player_opponent_elo = team_elo[0]
             # Building a row for each player
-            if isinstance(player_kills[index], str) or isinstance(rounds_played, str):
-                player_kpr = -1
+            if game_stats.player_kills[index] is None or isinstance(rounds_played, str):
+                player_kpr = None
             else:
-                player_kpr = round(player_kills[index] / int(rounds_played), 2)
+                player_kpr = round(game_stats.player_kills[index] / int(rounds_played), 2)
 
             match_data.append(Player(
                 match_id,
@@ -179,10 +189,18 @@ def get_match_data(match_soup: BeautifulSoup = None, match_id: int = None) -> li
                 player_team_long,
                 player_team_short,
                 player_team_elo,
-                player_adr[index],
-                player_kills[index],
-                player_deaths[index],
-                player_assists[index],
+                game_stats.player_rating[index],
+                game_stats.player_acs[index],
+                game_stats.player_kills[index],
+                game_stats.player_deaths[index],
+                game_stats.player_assists[index],
+                game_stats.player_kdiff[index],
+                game_stats.player_kast[index],
+                game_stats.player_adr[index],
+                game_stats.player_hs[index],
+                game_stats.player_fk[index],
+                game_stats.player_fd[index],
+                game_stats.player_fdiff[index],
                 player_kpr,
                 player_opponent_id,
                 player_opponent_long,
@@ -232,11 +250,11 @@ def get_match_datas(match_ids: list, data_file: str = '', soups_file: str = ''):
 
     # Looping through each match in the match_id list
         # Sets the information that doesnt through map/players
-    for match_id in match_ids:
-        print(f"Match {match_ids.index(match_id)} / {len(match_ids)}")
+    for i, match_id in enumerate(match_ids):
+        print(f"Match {i + 1} / {len(match_ids)}")
         # Getting the index of a match soup by comparing to stored_soup match_id
         index = stored_soups.loc[stored_soups['match_id']
-                                 == int(match_id)].index.tolist()
+                                 == match_id].index.tolist()
         if bool(index):
             # Making sure the loaded soup is in the bs4 format before going to scraping functions
             if str(type(stored_soups['soup'][index[0]])) == "<class 'bs4.BeautifulSoup'>":
@@ -248,7 +266,7 @@ def get_match_datas(match_ids: list, data_file: str = '', soups_file: str = ''):
             match_soup = get_soup(str(match_id))
             stored_soups.loc[len(stored_soups.index)] = [match_id, match_soup]
 
-        data += get_match_data(match_soup)
+        data += get_match_data(match_soup=match_soup)
 
     return data, stored_soups
 
@@ -387,14 +405,17 @@ def get_game_stats(game_soup: BeautifulSoup, player_index: int = False, stat_col
     player_stat_list = []
     player_stat = []
     columns = ['player_rating', 'player_acs', 'player_kills', 'player_deaths', 'player_assists',
-               'player_kills-deaths', 'player_kast', 'player_adr', 'player_hs', 'player_fk', 'player_fd', 'player_fk-fd']
+               'player_kdiff', 'player_kast', 'player_adr', 'player_hs', 'player_fk', 'player_fd', 'player_fdiff']
     for index, htelement in enumerate(player_stat_html):
         #print(htelement.text.split('\n'))
         stat = htelement.text.replace('/', '').replace('\n', ' ').strip().split(' ')[0]
-        try:
-            stat = float(stat)
-        except ValueError:
-            stat = float(stat.replace('%', '')) / 100
+        if stat != '':
+            try:
+                stat = float(stat)
+            except ValueError:
+                stat = float(stat.replace('%', '')) / 100
+        else:
+            stat = None
         player_stat.append(stat)
         if (index + 1) % 12 == 0:
             player_stat_list.append(player_stat)

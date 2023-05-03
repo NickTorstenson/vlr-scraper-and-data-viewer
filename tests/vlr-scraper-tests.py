@@ -57,27 +57,34 @@ matches = []
 #     matches += vlrs.get_team_match_ids(team, 50)
 #     unique_matches = list(set(matches))
 #     print(len(unique_matches))
+    
 MATCH = 184805
 
 # test_soups = [[MATCH], [vlrs.get_soup(str(MATCH))]]
 # test_soups = pd.DataFrame(test_soups)
 # test_soups.to_csv('test_soups.csv', index=False)
 
+# unique_matches = pd.DataFrame(unique_matches, columns=['match_id'])
+# unique_matches.sort_values(by='match_id', ascending=False)
+# unique_matches.to_csv('match_ids(AllRegionsLast50)', index=False)
 
-with cProfile.Profile() as pr:
-    vlrs.get_match_datas(match_ids=[MATCH], soups_file='test_soups')
+unique_matches = pd.read_csv('match_ids.csv')['match_id'].values.tolist()
 
-stats = pstats.Stats(pr)
-stats.sort_stats(pstats.SortKey.TIME)
-#stats.print_stats()
-stats.dump_stats(filename='profiling2.prof')
-print(vlrs.get_player_adrs(vlrs.get_game_soups(183804)[0]))
+# with cProfile.Profile() as pr:
+#     vlrs.get_match_datas(match_ids=[MATCH], soups_file='test_soups')
+
+# stats = pstats.Stats(pr)
+# stats.sort_stats(pstats.SortKey.TIME)
+# #stats.print_stats()
+# stats.dump_stats(filename='profiling2.prof')
+# print(vlrs.get_player_adrs(vlrs.get_game_soups(183804)[0]))
 
 #vlrs.to_csv(data, f'match_soups_storage({today})(1)')
 #vlrs.get_match_player_data([64566])[1]
-
-#, soups_file='match_soups_storage(2023-04-24).csv'
-# data = vlrs.get_match_player_datas(unique_matches, soups_file='match_soups_storage(2023-04-24).csv')
-# storage = pd.DataFrame(data[1])
-# vlrs.to_csv(data[0], filename=f'playerdata({today})(Last50All)(1)')
-# vlrs.to_csv(storage, filename=f'match_soups_storage({today})(1).csv')
+#print(unique_matches)
+SOUPSFILE = 'matchstorage.csv'
+data = vlrs.get_match_datas(unique_matches[90:100], soups_file=SOUPSFILE)
+match_data = pd.DataFrame(data[0])
+storage = pd.DataFrame(data[1])
+match_data.to_csv('playerdatatest', index=False)
+storage.to_csv(SOUPSFILE, index=False)
