@@ -372,9 +372,7 @@ def get_player_names(game_soup: BeautifulSoup = None) -> list:
     return player_names
 
 
-def get_player_game_stats(game_soup: BeautifulSoup, 
-                          player_index: int = False, 
-                          stat_column: str = False) -> list:
+def get_player_game_stats(game_soup: BeautifulSoup, player_index: int = False, stat_column: str = False) -> list:
     """Pulls info from the stats table and gives a table of the values
 
     Args:
