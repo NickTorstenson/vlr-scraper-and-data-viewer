@@ -236,7 +236,7 @@ def get_match_datas(match_ids: list, data_file: str = '', soups_file: str = ''):
                 f"Incorrect number of columns. Creating a new file with name '{filename}.csv'")
 
     except FileNotFoundError:
-        print(f"No file found. Creating new file with name '{filename}.csv'")
+        print(f"No saved match file found. Creating new file with name '{filename}.csv'")
 
     # Handling loading the stored soups into a list
     stored_soups = None
