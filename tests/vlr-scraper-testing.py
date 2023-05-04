@@ -82,9 +82,17 @@ unique_matches = pd.read_csv('match_ids.csv')['match_id'].values.tolist()
 #vlrs.to_csv(data, f'match_soups_storage({today})(1)')
 #vlrs.get_match_player_data([64566])[1]
 #print(unique_matches)
-SOUPSFILE = 'matchstorage.csv'
-data = vlrs.get_match_datas(unique_matches[90:100], soups_file=SOUPSFILE)
+SOUPSFILE = r'C:\Users\nickt\OneDrive\Documents\GitHub\vlr-scraper-and-data-viewer\data\match_soups_storage(2023-04-24).csv'
+storage = None
+with cProfile.Profile() as pr:
+    data = vlrs.get_match_datas(unique_matches, soups_file=SOUPSFILE)
+    
+stats = pstats.Stats(pr)
+stats.sort_stats(pstats.SortKey.TIME)
+stats.dump_stats(filename='newMethod10.prof')
+
 match_data = pd.DataFrame(data[0])
+print(match_data)
 storage = pd.DataFrame(data[1])
-match_data.to_csv('playerdatatest', index=False)
+match_data.to_csv(f'playerdata({today})', index=False)
 storage.to_csv(SOUPSFILE, index=False)
